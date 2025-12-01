@@ -1,0 +1,677 @@
+﻿chunk_id,content,content_length,source
+0,Build a RAG agent with LangChain - Docs by LangChainSkip to main contentDocs by LangChain home pageLangChain + LangGraphSearch...‚åòKAsk AIGitHubTry LangSmithTry LangSmithSearch...NavigationLangChainBuild a RAG agent with LangChainLangChainLangGraphDeep AgentsIntegrationsLearnReferenceContributePythonLearnTutorialsLangChainSemantic searchRAG agentSQL agentSupervisor agentLangGraphConceptual overviewsComponent architectureMemoryContextGraph APIFunctional APIAdditional resourcesLangChain AcademyCase studiesOn this pageOverviewConceptsPreviewSetupInstallationLangSmithComponents1. IndexingLoading documentsSplitting documentsStoring documents2. Retrieval and GenerationRAG agentsRAG chainsNext stepsTutorialsLangChainBuild a RAG agent with LangChainCopy pageCopy page‚ÄãOverview,781,https://python.langchain.com/docs/tutorials/rag/
+1,"One of the most powerful applications enabled by LLMs is sophisticated question-answering (Q&A) chatbots. These are applications that can answer questions about specific source information. These applications use a technique known as Retrieval Augmented Generation, or RAG.
+This tutorial will show how to build a simple Q&A application over an unstructured text data source. We will demonstrate:",395,https://python.langchain.com/docs/tutorials/rag/
+2,"A RAG agent that executes searches with a simple tool. This is a good general-purpose implementation.
+A two-step RAG chain that uses just a single LLM call per query. This is a fast and effective method for simple queries.
+
+‚ÄãConcepts
+We will cover the following concepts:
+
+
+Indexing: a pipeline for ingesting data from a source and indexing it. This usually happens in a separate process.
+
+
+Retrieval and generation: the actual RAG process, which takes the user query at run time and retrieves the relevant data from the index, then passes that to the model.",560,https://python.langchain.com/docs/tutorials/rag/
+3,"Once we‚Äôve indexed our data, we will use an agent as our orchestration framework to implement the retrieval and generation steps.
+The indexing portion of this tutorial will largely follow the semantic search tutorial.If your data is already available for search (i.e., you have a function to execute a search), or you‚Äôre comfortable with the content from that tutorial, feel free to skip to the section on retrieval and generation
+‚ÄãPreview
+In this guide we‚Äôll build an app that answers questions about the website‚Äôs content. The specific website we will use is the LLM Powered Autonomous Agents blog post by Lilian Weng, which allows us to ask questions about the contents of the post.
+We can create a simple indexing pipeline and RAG chain to do this in ~40 lines of code. See below for the full code snippet:
+Expand for full code snippetCopyimport bs4
+from langchain.agents import AgentState, create_agent
+from langchain_community.document_loaders import WebBaseLoader",980,https://python.langchain.com/docs/tutorials/rag/
+4,"from langchain_community.document_loaders import WebBaseLoader
+from langchain.messages import MessageLikeRepresentation
+from langchain_text_splitters import RecursiveCharacterTextSplitter",187,https://python.langchain.com/docs/tutorials/rag/
+5,"# Load and chunk contents of the blog
+loader = WebBaseLoader(
+    web_paths=(""https://lilianweng.github.io/posts/2023-06-23-agent/"",),
+    bs_kwargs=dict(
+        parse_only=bs4.SoupStrainer(
+            class_=(""post-content"", ""post-title"", ""post-header"")
+        )
+    ),
+)
+docs = loader.load()
+
+text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
+all_splits = text_splitter.split_documents(docs)
+
+# Index chunks
+_ = vector_store.add_documents(documents=all_splits)
+
+# Construct a tool for retrieving context
+@tool(response_format=""content_and_artifact"")
+def retrieve_context(query: str):
+    """"""Retrieve information to help answer a query.""""""
+    retrieved_docs = vector_store.similarity_search(query, k=2)
+    serialized = ""\n\n"".join(
+        (f""Source: {doc.metadata}\nContent: {doc.page_content}"")
+        for doc in retrieved_docs
+    )
+    return serialized, retrieved_docs",913,https://python.langchain.com/docs/tutorials/rag/
+6,"tools = [retrieve_context]
+# If desired, specify custom instructions
+prompt = (
+    ""You have access to a tool that retrieves context from a blog post. ""
+    ""Use the tool to help answer user queries.""
+)
+agent = create_agent(model, tools, system_prompt=prompt)
+Copyquery = ""What is task decomposition?""
+for step in agent.stream(
+    {""messages"": [{""role"": ""user"", ""content"": query}]},
+    stream_mode=""values"",
+):
+    step[""messages""][-1].pretty_print()
+Copy================================ Human Message =================================
+
+What is task decomposition?
+================================== Ai Message ==================================
+Tool Calls:
+  retrieve_context (call_xTkJr8njRY0geNz43ZvGkX0R)
+ Call ID: call_xTkJr8njRY0geNz43ZvGkX0R
+  Args:
+    query: task decomposition
+================================= Tool Message =================================
+Name: retrieve_context",893,https://python.langchain.com/docs/tutorials/rag/
+7,"Source: {'source': 'https://lilianweng.github.io/posts/2023-06-23-agent/'}
+Content: Task decomposition can be done by...
+
+Source: {'source': 'https://lilianweng.github.io/posts/2023-06-23-agent/'}
+Content: Component One: Planning...
+================================== Ai Message ==================================
+
+Task decomposition refers to...
+Check out the LangSmith trace.
+‚ÄãSetup
+‚ÄãInstallation
+This tutorial requires these langchain dependencies:
+pipuvcondaCopypip install langchain langchain-text-splitters langchain-community bs4",540,https://python.langchain.com/docs/tutorials/rag/
+8,"For more details, see our Installation guide.
+‚ÄãLangSmith
+Many of the applications you build with LangChain will contain multiple steps with multiple invocations of LLM calls. As these applications get more complex, it becomes crucial to be able to inspect what exactly is going on inside your chain or agent. The best way to do this is with LangSmith.
+After you sign up at the link above, make sure to set your environment variables to start logging traces:
+Copyexport LANGSMITH_TRACING=""true""
+export LANGSMITH_API_KEY=""...""
+
+Or, set them in Python:
+Copyimport getpass
+import os
+
+os.environ[""LANGSMITH_TRACING""] = ""true""
+os.environ[""LANGSMITH_API_KEY""] = getpass.getpass()",674,https://python.langchain.com/docs/tutorials/rag/
+9,"os.environ[""LANGSMITH_TRACING""] = ""true""
+os.environ[""LANGSMITH_API_KEY""] = getpass.getpass()
+
+‚ÄãComponents
+We will need to select three components from LangChain‚Äôs suite of integrations.
+Select a chat model:
+ OpenAI Anthropic Azure Google Gemini AWS Bedrocküëâ Read the OpenAI chat model integration docsCopypip install -U ""langchain[openai]""
+init_chat_modelModel ClassCopyimport os
+from langchain.chat_models import init_chat_model
+
+os.environ[""OPENAI_API_KEY""] = ""sk-...""
+
+model = init_chat_model(""gpt-4.1"")
+
+Select an embeddings model:
+ OpenAI Azure Google Gemini Google Vertex AWS HuggingFace Ollama Cohere MistralAI Nomic NVIDIA Voyage AI IBM watsonx Fake IsaacusCopypip install -U ""langchain-openai""
+Copyimport getpass
+import os
+
+if not os.environ.get(""OPENAI_API_KEY""):
+    os.environ[""OPENAI_API_KEY""] = getpass.getpass(""Enter API key for OpenAI: "")
+
+from langchain_openai import OpenAIEmbeddings
+
+embeddings = OpenAIEmbeddings(model=""text-embedding-3-large"")",971,https://python.langchain.com/docs/tutorials/rag/
+10,"embeddings = OpenAIEmbeddings(model=""text-embedding-3-large"")
+
+Select a vector store:
+ In-memory AstraDB Chroma FAISS Milvus MongoDB PGVector PGVectorStore Pinecone QdrantCopypip install -U ""langchain-core""
+Copyfrom langchain_core.vectorstores import InMemoryVectorStore
+
+vector_store = InMemoryVectorStore(embeddings)
+
+‚Äã1. Indexing
+This section is an abbreviated version of the content in the semantic search tutorial.If your data is already indexed and available for search (i.e., you have a function to execute a search), or if you‚Äôre comfortable with document loaders, embeddings, and vector stores, feel free to skip to the next section on retrieval and generation.
+Indexing commonly works as follows:",710,https://python.langchain.com/docs/tutorials/rag/
+11,"Load: First we need to load our data. This is done with Document Loaders.
+Split: Text splitters break large Documents into smaller chunks. This is useful both for indexing data and passing it into a model, as large chunks are harder to search over and won‚Äôt fit in a model‚Äôs finite context window.
+Store: We need somewhere to store and index our splits, so that they can be searched over later. This is often done using a VectorStore and Embeddings model.",459,https://python.langchain.com/docs/tutorials/rag/
+12,"‚ÄãLoading documents
+We need to first load the blog post contents. We can use DocumentLoaders for this, which are objects that load in data from a source and return a list of Document objects.
+In this case we‚Äôll use the WebBaseLoader, which uses urllib to load HTML from web URLs and BeautifulSoup to parse it to text. We can customize the HTML -> text parsing by passing in parameters into the BeautifulSoup parser via bs_kwargs (see BeautifulSoup docs). In this case only HTML tags with class ‚Äúpost-content‚Äù, ‚Äúpost-title‚Äù, or ‚Äúpost-header‚Äù are relevant, so we‚Äôll remove all others.
+Copyimport bs4
+from langchain_community.document_loaders import WebBaseLoader
+
+# Only keep post title, headers, and content from the full HTML.
+bs4_strainer = bs4.SoupStrainer(class_=(""post-title"", ""post-header"", ""post-content""))
+loader = WebBaseLoader(
+    web_paths=(""https://lilianweng.github.io/posts/2023-06-23-agent/"",),
+    bs_kwargs={""parse_only"": bs4_strainer},
+)
+docs = loader.load()",993,https://python.langchain.com/docs/tutorials/rag/
+13,"assert len(docs) == 1
+print(f""Total characters: {len(docs[0].page_content)}"")
+
+CopyTotal characters: 43131
+
+Copyprint(docs[0].page_content[:500])
+
+Copy      LLM Powered Autonomous Agents
+
+Date: June 23, 2023  |  Estimated Reading Time: 31 min  |  Author: Lilian Weng
+
+
+Building agents with LLM (large language model) as its core controller is a cool concept. Several proof-of-concepts demos, such as AutoGPT, GPT-Engineer and BabyAGI, serve as inspiring examples. The potentiality of LLM extends beyond generating well-written copies, stories, essays and programs; it can be framed as a powerful general problem solver.
+Agent System Overview#
+In
+
+Go deeper
+DocumentLoader: Object that loads data from a source as list of Documents.
+
+Integrations: 160+ integrations to choose from.
+BaseLoader: API reference for the base interface.",830,https://python.langchain.com/docs/tutorials/rag/
+14,"Integrations: 160+ integrations to choose from.
+BaseLoader: API reference for the base interface.
+
+‚ÄãSplitting documents
+Our loaded document is over 42k characters which is too long to fit into the context window of many models. Even for those models that could fit the full post in their context window, models can struggle to find information in very long inputs.
+To handle this we‚Äôll split the Document into chunks for embedding and vector storage. This should help us retrieve only the most relevant parts of the blog post at run time.
+As in the semantic search tutorial, we use a RecursiveCharacterTextSplitter, which will recursively split the document using common separators like new lines until each chunk is the appropriate size. This is the recommended text splitter for generic text use cases.
+Copyfrom langchain_text_splitters import RecursiveCharacterTextSplitter",880,https://python.langchain.com/docs/tutorials/rag/
+15,"text_splitter = RecursiveCharacterTextSplitter(
+    chunk_size=1000,  # chunk size (characters)
+    chunk_overlap=200,  # chunk overlap (characters)
+    add_start_index=True,  # track index in original document
+)
+all_splits = text_splitter.split_documents(docs)
+
+print(f""Split blog post into {len(all_splits)} sub-documents."")
+
+CopySplit blog post into 66 sub-documents.
+
+Go deeper
+TextSplitter: Object that splits a list of Document objects into smaller
+chunks for storage and retrieval.
+
+Integrations
+Interface: API reference for the base interface.",551,https://python.langchain.com/docs/tutorials/rag/
+16,"Integrations
+Interface: API reference for the base interface.
+
+‚ÄãStoring documents
+Now we need to index our 66 text chunks so that we can search over them at runtime. Following the semantic search tutorial, our approach is to embed the contents of each document split and insert these embeddings into a vector store. Given an input query, we can then use vector search to retrieve relevant documents.
+We can embed and store all of our document splits in a single command using the vector store and embeddings model selected at the start of the tutorial.
+Copydocument_ids = vector_store.add_documents(documents=all_splits)
+
+print(document_ids[:3])
+
+Copy['07c18af6-ad58-479a-bfb1-d508033f9c64', '9000bf8e-1993-446f-8d4d-f4e507ba4b8f', 'ba3b5d14-bed9-4f5f-88be-44c88aedc2e6']
+
+Go deeper
+Embeddings: Wrapper around a text embedding model, used for converting text to embeddings.
+
+Integrations: 30+ integrations to choose from.
+Interface: API reference for the base interface.",972,https://python.langchain.com/docs/tutorials/rag/
+17,"Integrations: 30+ integrations to choose from.
+Interface: API reference for the base interface.
+
+VectorStore: Wrapper around a vector database, used for storing and querying embeddings.
+
+Integrations: 40+ integrations to choose from.
+Interface: API reference for the base interface.
+
+This completes the Indexing portion of the pipeline. At this point we have a query-able vector store containing the chunked contents of our blog post. Given a user question, we should ideally be able to return the snippets of the blog post that answer the question.
+‚Äã2. Retrieval and Generation
+RAG applications commonly work as follows:
+
+Retrieve: Given a user input, relevant splits are retrieved from storage using a Retriever.
+Generate: A model produces an answer using a prompt that includes both the question with the retrieved data",824,https://python.langchain.com/docs/tutorials/rag/
+18,"Now let‚Äôs write the actual application logic. We want to create a simple application that takes a user question, searches for documents relevant to that question, passes the retrieved documents and initial question to a model, and returns an answer.
+We will demonstrate:
+
+A RAG agent that executes searches with a simple tool. This is a good general-purpose implementation.
+A two-step RAG chain that uses just a single LLM call per query. This is a fast and effective method for simple queries.
+
+‚ÄãRAG agents
+One formulation of a RAG application is as a simple agent with a tool that retrieves information. We can assemble a minimal RAG agent by implementing a tool that wraps our vector store:
+Copyfrom langchain.tools import tool",734,https://python.langchain.com/docs/tutorials/rag/
+19,"@tool(response_format=""content_and_artifact"")
+def retrieve_context(query: str):
+    """"""Retrieve information to help answer a query.""""""
+    retrieved_docs = vector_store.similarity_search(query, k=2)
+    serialized = ""\n\n"".join(
+        (f""Source: {doc.metadata}\nContent: {doc.page_content}"")
+        for doc in retrieved_docs
+    )
+    return serialized, retrieved_docs
+
+Here we use the tool decorator to configure the tool to attach raw documents as artifacts to each ToolMessage. This will let us access document metadata in our application, separate from the stringified representation that is sent to the model.
+Retrieval tools are not limited to a single string query argument, as in the above example. You can
+force the LLM to specify additional search parameters by adding arguments‚Äî for example, a category:Copyfrom typing import Literal
+
+def retrieve_context(query: str, section: Literal[""beginning"", ""middle"", ""end""]):",932,https://python.langchain.com/docs/tutorials/rag/
+20,"def retrieve_context(query: str, section: Literal[""beginning"", ""middle"", ""end""]):
+
+Given our tool, we can construct the agent:
+Copyfrom langchain.agents import create_agent
+
+
+tools = [retrieve_context]
+# If desired, specify custom instructions
+prompt = (
+    ""You have access to a tool that retrieves context from a blog post. ""
+    ""Use the tool to help answer user queries.""
+)
+agent = create_agent(model, tools, system_prompt=prompt)
+
+Let‚Äôs test this out. We construct a question that would typically require an iterative sequence of retrieval steps to answer:
+Copyquery = (
+    ""What is the standard method for Task Decomposition?\n\n""
+    ""Once you get the answer, look up common extensions of that method.""
+)
+
+for event in agent.stream(
+    {""messages"": [{""role"": ""user"", ""content"": query}]},
+    stream_mode=""values"",
+):
+    event[""messages""][-1].pretty_print()
+
+Copy================================ Human Message =================================",955,https://python.langchain.com/docs/tutorials/rag/
+21,"Copy================================ Human Message =================================
+
+What is the standard method for Task Decomposition?
+
+Once you get the answer, look up common extensions of that method.
+================================== Ai Message ==================================
+Tool Calls:
+  retrieve_context (call_d6AVxICMPQYwAKj9lgH4E337)
+ Call ID: call_d6AVxICMPQYwAKj9lgH4E337
+  Args:
+    query: standard method for Task Decomposition
+================================= Tool Message =================================
+Name: retrieve_context
+
+Source: {'source': 'https://lilianweng.github.io/posts/2023-06-23-agent/'}
+Content: Task decomposition can be done...",670,https://python.langchain.com/docs/tutorials/rag/
+22,"Source: {'source': 'https://lilianweng.github.io/posts/2023-06-23-agent/'}
+Content: Component One: Planning...
+================================== Ai Message ==================================
+Tool Calls:
+  retrieve_context (call_0dbMOw7266jvETbXWn4JqWpR)
+ Call ID: call_0dbMOw7266jvETbXWn4JqWpR
+  Args:
+    query: common extensions of the standard method for Task Decomposition
+================================= Tool Message =================================
+Name: retrieve_context
+
+Source: {'source': 'https://lilianweng.github.io/posts/2023-06-23-agent/'}
+Content: Task decomposition can be done...
+
+Source: {'source': 'https://lilianweng.github.io/posts/2023-06-23-agent/'}
+Content: Component One: Planning...
+================================== Ai Message ==================================
+
+The standard method for Task Decomposition often used is the Chain of Thought (CoT)...
+
+Note that the agent:",903,https://python.langchain.com/docs/tutorials/rag/
+23,"Note that the agent:
+
+Generates a query to search for a standard method for task decomposition;
+Receiving the answer, generates a second query to search for common extensions of it;
+Having received all necessary context, answers the question.",242,https://python.langchain.com/docs/tutorials/rag/
+24,"We can see the full sequence of steps, along with latency and other metadata, in the LangSmith trace.
+You can add a deeper level of control and customization using the LangGraph framework directly‚Äî for example, you can add steps to grade document relevance and rewrite search queries. Check out LangGraph‚Äôs Agentic RAG tutorial for more advanced formulations.
+‚ÄãRAG chains
+In the above agentic RAG formulation we allow the LLM to use its discretion in generating a tool call to help answer user queries. This is a good general-purpose solution, but comes with some trade-offs:",581,https://python.langchain.com/docs/tutorials/rag/
+25,"‚úÖ Benefits‚ö†Ô∏è DrawbacksSearch only when needed ‚Äì The LLM can handle greetings, follow-ups, and simple queries without triggering unnecessary searches.Two inference calls ‚Äì When a search is performed, it requires one call to generate the query and another to produce the final response.Contextual search queries ‚Äì By treating search as a tool with a query input, the LLM crafts its own queries that incorporate conversational context.Reduced control ‚Äì The LLM may skip searches when they are actually needed, or issue extra searches when unnecessary.Multiple searches allowed ‚Äì The LLM can execute several searches in support of a single user query.
+Another common approach is a two-step chain, in which we always run a search (potentially using the raw user query) and incorporate the result as context for a single LLM query. This results in a single inference call per query, buying reduced latency at the expense of flexibility.",946,https://python.langchain.com/docs/tutorials/rag/
+26,"In this approach we no longer call the model in a loop, but instead make a single pass.
+We can implement this chain by removing tools from the agent and instead incorporating the retrieval step into a custom prompt:
+Copyfrom langchain.agents.middleware import dynamic_prompt, ModelRequest",288,https://python.langchain.com/docs/tutorials/rag/
+27,"@dynamic_prompt
+def prompt_with_context(request: ModelRequest) -> str:
+    """"""Inject context into state messages.""""""
+    last_query = request.state[""messages""][-1].text
+    retrieved_docs = vector_store.similarity_search(last_query)
+
+    docs_content = ""\n\n"".join(doc.page_content for doc in retrieved_docs)
+
+    system_message = (
+        ""You are a helpful assistant. Use the following context in your response:""
+        f""\n\n{docs_content}""
+    )
+
+    return system_message
+
+
+agent = create_agent(model, tools=[], middleware=[prompt_with_context])
+
+Let‚Äôs try this out:
+Copyquery = ""What is task decomposition?""
+for step in agent.stream(
+    {""messages"": [{""role"": ""user"", ""content"": query}]},
+    stream_mode=""values"",
+):
+    step[""messages""][-1].pretty_print()
+
+Copy================================ Human Message =================================
+
+What is task decomposition?
+================================== Ai Message ==================================
+
+Task decomposition is...",990,https://python.langchain.com/docs/tutorials/rag/
+28,"Task decomposition is...
+
+In the LangSmith trace we can see the retrieved context incorporated into the model prompt.
+This is a fast and effective method for simple queries in constrained settings, when we typically do want to run user queries through semantic search to pull additional context.
+Returning source documentsThe above RAG chain incorporates retrieved context into a single system message for that run.As in the agentic RAG formulation, we sometimes want to include raw source documents in the application state to have access to document metadata. We can do this for the two-step chain case by:
+Adding a key to the state to store the retrieved documents
+Adding a new node via a pre-model hook to populate that key (as well as inject the context).
+Copyfrom typing import Any
+from langchain_core.documents import Document
+from langchain.agents.middleware import AgentMiddleware, AgentState
+
+
+class State(AgentState):
+    context: list[Document]",956,https://python.langchain.com/docs/tutorials/rag/
+29,"class State(AgentState):
+    context: list[Document]
+
+
+class RetrieveDocumentsMiddleware(AgentMiddleware[State]):
+    state_schema = State
+
+    def before_model(self, state: AgentState) -> dict[str, Any] | None:
+        last_message = state[""messages""][-1]
+        retrieved_docs = vector_store.similarity_search(last_message.text)
+
+        docs_content = ""\n\n"".join(doc.page_content for doc in retrieved_docs)
+
+        augmented_message_content = (
+            f""{last_message.text}\n\n""
+            ""Use the following context to answer the query:\n""
+            f""{docs_content}""
+        )
+        return {
+            ""messages"": [last_message.model_copy(update={""content"": augmented_message_content})],
+            ""context"": retrieved_docs,
+        }
+
+
+agent = create_agent(
+    model,
+    tools=[],
+    middleware=[RetrieveDocumentsMiddleware()],
+)
+
+‚ÄãNext steps
+Now that we‚Äôve implemented a simple RAG application via create_agent, we can easily incorporate new features and go deeper:",996,https://python.langchain.com/docs/tutorials/rag/
+30,"Stream tokens and other information for responsive user experiences
+Add conversational memory to support multi-turn interactions
+Add long-term memory to support memory across conversational threads
+Add structured responses
+Deploy your application with LangSmith Deployments
+
+
+Edit the source of this page on GitHub.
+Connect these docs programmatically to Claude, VSCode, and more via MCP for real-time answers.Was this page helpful?YesNoBuild a semantic search engine with LangChainPreviousBuild a SQL agentNext‚åòIDocs by LangChain home pagegithubxlinkedinyoutubeResourcesForumChangelogLangChain AcademyTrust CenterCompanyAboutCareersBloggithubxlinkedinyoutubePowered by Mintlify",680,https://python.langchain.com/docs/tutorials/rag/
+31,"LangChain overview - Docs by LangChainSkip to main contentDocs by LangChain home pageLangChain + LangGraphSearch...âŒ˜KAsk AIGitHubTry LangSmithTry LangSmithSearch...NavigationLangChain overviewLangChainLangGraphDeep AgentsIntegrationsLearnReferenceContributePythonOverviewChangelogGet startedInstallQuickstartPhilosophyCore componentsAgentsModelsMessagesToolsShort-term memoryStreamingStructured outputMiddlewareOverviewBuilt-in middlewareCustom middlewareAdvanced usageGuardrailsRuntimeContext engineeringModel Context Protocol (MCP)Human-in-the-loopMulti-agentRetrievalLong-term memoryAgent developmentLangSmith StudioTestAgent Chat UIDeploy with LangSmithDeploymentObservabilityOn this page Install Create an agent Core benefitsLangChain overviewCopy pageCopy pageLangChain v1.x is now available!For a complete list of changes and instructions on how to upgrade your code, see the release notes and migration guide.If you encounter any issues or have feedback, please open an issue so we can",995,https://python.langchain.com/docs/concepts/vectorstores/
+32,"and migration guide.If you encounter any issues or have feedback, please open an issue so we can improve. To view v0.x documentation, go to the archived content.",161,https://python.langchain.com/docs/concepts/vectorstores/
+33,"LangChain is the easiest way to start building agents and applications powered by LLMs. With under 10 lines of code, you can connect to OpenAI, Anthropic, Google, and more. LangChain provides a pre-built agent architecture and model integrations to help you get started quickly and seamlessly incorporate LLMs into your agents and applications.
+We recommend you use LangChain if you want to quickly build agents and autonomous applications. Use LangGraph, our low-level agent orchestration framework and runtime, when you have more advanced needs that require a combination of deterministic and agentic workflows, heavy customization, and carefully controlled latency.
+LangChain agents are built on top of LangGraph in order to provide durable execution, streaming, human-in-the-loop, persistence, and more. You do not need to know LangGraph for basic LangChain agent usage.
+â€‹ Install
+pipuvCopypip install -U langchain
+# Requires Python 3.10+",944,https://python.langchain.com/docs/concepts/vectorstores/
+34,"â€‹ Create an agent
+Copy# pip install -qU ""langchain[anthropic]"" to call the model
+
+from langchain.agents import create_agent
+
+def get_weather(city: str) -> str:
+    """"""Get weather for a given city.""""""
+    return f""It's always sunny in {city}!""
+
+agent = create_agent(
+    model=""claude-sonnet-4-5-20250929"",
+    tools=[get_weather],
+    system_prompt=""You are a helpful assistant"",
+)
+
+# Run the agent
+agent.invoke(
+    {""messages"": [{""role"": ""user"", ""content"": ""what is the weather in sf""}]}
+)",493,https://python.langchain.com/docs/concepts/vectorstores/
+35,"â€‹ Core benefits
+Standard model interfaceDifferent providers have unique APIs for interacting with models, including the format of responses. LangChain standardizes how you interact with models so that you can seamlessly swap providers and avoid lock-in.Learn moreEasy to use, highly flexible agentLangChainâ€™s agent abstraction is designed to be easy to get started with, letting you build a simple agent in under 10 lines of code. But it also provides enough flexibility to allow you to do all the context engineering your heart desires.Learn moreBuilt on top of LangGraphLangChainâ€™s agents are built on top of LangGraph. This allows us to take advantage of LangGraphâ€™s durable execution, human-in-the-loop support, persistence, and more.Learn moreDebug with LangSmithGain deep visibility into complex agent behavior with visualization tools that trace execution paths, capture state transitions, and provide detailed runtime metrics.Learn more",952,https://python.langchain.com/docs/concepts/vectorstores/
+36,"Edit the source of this page on GitHub.
+Connect these docs programmatically to Claude, VSCode, and more via MCP for real-time answers.Was this page helpful?YesNoChangelogNextâŒ˜IDocs by LangChain home pagegithubxlinkedinyoutubeResourcesForumChangelogLangChain AcademyTrust CenterCompanyAboutCareersBloggithubxlinkedinyoutubePowered by Mintlify",343,https://python.langchain.com/docs/concepts/vectorstores/
+37,"LangChain overview - Docs by LangChainSkip to main contentDocs by LangChain home pageLangChain + LangGraphSearch...âŒ˜KAsk AIGitHubTry LangSmithTry LangSmithSearch...NavigationLangChain overviewLangChainLangGraphDeep AgentsIntegrationsLearnReferenceContributePythonOverviewChangelogGet startedInstallQuickstartPhilosophyCore componentsAgentsModelsMessagesToolsShort-term memoryStreamingStructured outputMiddlewareOverviewBuilt-in middlewareCustom middlewareAdvanced usageGuardrailsRuntimeContext engineeringModel Context Protocol (MCP)Human-in-the-loopMulti-agentRetrievalLong-term memoryAgent developmentLangSmith StudioTestAgent Chat UIDeploy with LangSmithDeploymentObservabilityOn this page Install Create an agent Core benefitsLangChain overviewCopy pageCopy pageLangChain v1.x is now available!For a complete list of changes and instructions on how to upgrade your code, see the release notes and migration guide.If you encounter any issues or have feedback, please open an issue so we can",995,https://python.langchain.com/docs/concepts/text_splitters/
+38,"and migration guide.If you encounter any issues or have feedback, please open an issue so we can improve. To view v0.x documentation, go to the archived content.",161,https://python.langchain.com/docs/concepts/text_splitters/
+39,"LangChain is the easiest way to start building agents and applications powered by LLMs. With under 10 lines of code, you can connect to OpenAI, Anthropic, Google, and more. LangChain provides a pre-built agent architecture and model integrations to help you get started quickly and seamlessly incorporate LLMs into your agents and applications.
+We recommend you use LangChain if you want to quickly build agents and autonomous applications. Use LangGraph, our low-level agent orchestration framework and runtime, when you have more advanced needs that require a combination of deterministic and agentic workflows, heavy customization, and carefully controlled latency.
+LangChain agents are built on top of LangGraph in order to provide durable execution, streaming, human-in-the-loop, persistence, and more. You do not need to know LangGraph for basic LangChain agent usage.
+â€‹ Install
+pipuvCopypip install -U langchain
+# Requires Python 3.10+",944,https://python.langchain.com/docs/concepts/text_splitters/
+40,"â€‹ Create an agent
+Copy# pip install -qU ""langchain[anthropic]"" to call the model
+
+from langchain.agents import create_agent
+
+def get_weather(city: str) -> str:
+    """"""Get weather for a given city.""""""
+    return f""It's always sunny in {city}!""
+
+agent = create_agent(
+    model=""claude-sonnet-4-5-20250929"",
+    tools=[get_weather],
+    system_prompt=""You are a helpful assistant"",
+)
+
+# Run the agent
+agent.invoke(
+    {""messages"": [{""role"": ""user"", ""content"": ""what is the weather in sf""}]}
+)",493,https://python.langchain.com/docs/concepts/text_splitters/
+41,"â€‹ Core benefits
+Standard model interfaceDifferent providers have unique APIs for interacting with models, including the format of responses. LangChain standardizes how you interact with models so that you can seamlessly swap providers and avoid lock-in.Learn moreEasy to use, highly flexible agentLangChainâ€™s agent abstraction is designed to be easy to get started with, letting you build a simple agent in under 10 lines of code. But it also provides enough flexibility to allow you to do all the context engineering your heart desires.Learn moreBuilt on top of LangGraphLangChainâ€™s agents are built on top of LangGraph. This allows us to take advantage of LangGraphâ€™s durable execution, human-in-the-loop support, persistence, and more.Learn moreDebug with LangSmithGain deep visibility into complex agent behavior with visualization tools that trace execution paths, capture state transitions, and provide detailed runtime metrics.Learn more",952,https://python.langchain.com/docs/concepts/text_splitters/
+42,"Edit the source of this page on GitHub.
+Connect these docs programmatically to Claude, VSCode, and more via MCP for real-time answers.Was this page helpful?YesNoChangelogNextâŒ˜IDocs by LangChain home pagegithubxlinkedinyoutubeResourcesForumChangelogLangChain AcademyTrust CenterCompanyAboutCareersBloggithubxlinkedinyoutubePowered by Mintlify",343,https://python.langchain.com/docs/concepts/text_splitters/
+43,"LangChain overview - Docs by LangChainSkip to main contentDocs by LangChain home pageLangChain + LangGraphSearch...âŒ˜KAsk AIGitHubTry LangSmithTry LangSmithSearch...NavigationLangChain overviewLangChainLangGraphDeep AgentsIntegrationsLearnReferenceContributePythonOverviewChangelogGet startedInstallQuickstartPhilosophyCore componentsAgentsModelsMessagesToolsShort-term memoryStreamingStructured outputMiddlewareOverviewBuilt-in middlewareCustom middlewareAdvanced usageGuardrailsRuntimeContext engineeringModel Context Protocol (MCP)Human-in-the-loopMulti-agentRetrievalLong-term memoryAgent developmentLangSmith StudioTestAgent Chat UIDeploy with LangSmithDeploymentObservabilityOn this page Install Create an agent Core benefitsLangChain overviewCopy pageCopy pageLangChain v1.x is now available!For a complete list of changes and instructions on how to upgrade your code, see the release notes and migration guide.If you encounter any issues or have feedback, please open an issue so we can",995,https://python.langchain.com/docs/concepts/embedding_models/
+44,"and migration guide.If you encounter any issues or have feedback, please open an issue so we can improve. To view v0.x documentation, go to the archived content.",161,https://python.langchain.com/docs/concepts/embedding_models/
+45,"LangChain is the easiest way to start building agents and applications powered by LLMs. With under 10 lines of code, you can connect to OpenAI, Anthropic, Google, and more. LangChain provides a pre-built agent architecture and model integrations to help you get started quickly and seamlessly incorporate LLMs into your agents and applications.
+We recommend you use LangChain if you want to quickly build agents and autonomous applications. Use LangGraph, our low-level agent orchestration framework and runtime, when you have more advanced needs that require a combination of deterministic and agentic workflows, heavy customization, and carefully controlled latency.
+LangChain agents are built on top of LangGraph in order to provide durable execution, streaming, human-in-the-loop, persistence, and more. You do not need to know LangGraph for basic LangChain agent usage.
+â€‹ Install
+pipuvCopypip install -U langchain
+# Requires Python 3.10+",944,https://python.langchain.com/docs/concepts/embedding_models/
+46,"â€‹ Create an agent
+Copy# pip install -qU ""langchain[anthropic]"" to call the model
+
+from langchain.agents import create_agent
+
+def get_weather(city: str) -> str:
+    """"""Get weather for a given city.""""""
+    return f""It's always sunny in {city}!""
+
+agent = create_agent(
+    model=""claude-sonnet-4-5-20250929"",
+    tools=[get_weather],
+    system_prompt=""You are a helpful assistant"",
+)
+
+# Run the agent
+agent.invoke(
+    {""messages"": [{""role"": ""user"", ""content"": ""what is the weather in sf""}]}
+)",493,https://python.langchain.com/docs/concepts/embedding_models/
+47,"â€‹ Core benefits
+Standard model interfaceDifferent providers have unique APIs for interacting with models, including the format of responses. LangChain standardizes how you interact with models so that you can seamlessly swap providers and avoid lock-in.Learn moreEasy to use, highly flexible agentLangChainâ€™s agent abstraction is designed to be easy to get started with, letting you build a simple agent in under 10 lines of code. But it also provides enough flexibility to allow you to do all the context engineering your heart desires.Learn moreBuilt on top of LangGraphLangChainâ€™s agents are built on top of LangGraph. This allows us to take advantage of LangGraphâ€™s durable execution, human-in-the-loop support, persistence, and more.Learn moreDebug with LangSmithGain deep visibility into complex agent behavior with visualization tools that trace execution paths, capture state transitions, and provide detailed runtime metrics.Learn more",952,https://python.langchain.com/docs/concepts/embedding_models/
+48,"Edit the source of this page on GitHub.
+Connect these docs programmatically to Claude, VSCode, and more via MCP for real-time answers.Was this page helpful?YesNoChangelogNextâŒ˜IDocs by LangChain home pagegithubxlinkedinyoutubeResourcesForumChangelogLangChain AcademyTrust CenterCompanyAboutCareersBloggithubxlinkedinyoutubePowered by Mintlify",343,https://python.langchain.com/docs/concepts/embedding_models/
+49,"Deconstructing RAG
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Skip to content
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Case Studies
+
+
+
+
+In the Loop
+
+
+
+
+Web Home
+
+
+
+
+Try LangSmith
+
+
+
+
+Docs
+
+
+
+
+
+Sign in
+Subscribe
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Deconstructing RAG
+
+7 min read
+Nov 30, 2023",256,https://blog.langchain.dev/deconstructing-rag/
+50,"ContextIn a recent overview on the state of large language models (LLMs), Karpathy described LLMs as the kernel process of a new kind of operating system. Just as modern computers have RAM and access to files, LLMs have a context window that can be loaded with information retrieved from numerous data sources.Retrieval is a core component of the new LLM operating systemThis retrieved information is loaded into the context window and used in LLM output generation, a process typically called retrieval augmented generation (RAG). RAG is one of the most important concepts in LLM app development because it is an easy way to pass external information to an LLM with advantages over more complex / complex fine-tuning on problems that require factual recall.Typically, RAG systems involve: a question (often from a user) that determines what information to retrieve, a process of retrieving that information from a data source (or sources), and a process of passing the retrieved information",991,https://blog.langchain.dev/deconstructing-rag/
+51,"information from a data source (or sources), and a process of passing the retrieved information directly to the LLM as part of the prompt (see an example prompt in LangChain hub here).ChallengeThe landscape of RAG methods has expanded greatly in recent months, resulting in some degree of overload or confusion among users about where to start and how to think about the various approaches. Over the past few months, we have worked to group RAG concepts into a few categories and have released guides for each. Below we'll provide a round-up of these concepts and present some future work. Major RAG themesQuery TransformationsA first question to ask when thinking about RAG: how can we make retrieval robust to variability in user input? For example, user questions may be poorly worded for the challenging task of retrieval. Query transformations are a set of approaches focused on modifying the user input in order to improve retrieval. Query expansionConsider the question ""Who won a",987,https://blog.langchain.dev/deconstructing-rag/
+52,"the user input in order to improve retrieval. Query expansionConsider the question ""Who won a championship more recently, the Red Sox or the Patriots?"" Answering this can benefit from asking two specific sub-questions: ""When was the last time the Red Sox won a championship?"" ""When was the last time the Patriots won a championship?""Query expansion decomposes the input into sub-questions, each of which is a more narrow retrieval challenge. The multi-query retriever performs sub-question generation, retrieval, and returns the unique union of the retrieved docs. RAG fusion builds on by ranking of the returned docs from each of the sub-questions. Step-back prompting offers a third approach in this vein, generating a step-back question to ground an answer synthesis in higher-level concepts or principles (see paper). For example, a question about physics can be stepped-back into a question (and LLM-generated answer) about the physical principles behind the user query. Query re-writingTo",994,https://blog.langchain.dev/deconstructing-rag/
+53,"(and LLM-generated answer) about the physical principles behind the user query. Query re-writingTo address poorly framed or worded user inputs, Rewrite-Retrieve-Read (see paper) is an approach re-writes user questions in order to improve retrieval. Query compressionIn some RAG applications, such as WebLang (our open source research assistant), a user question follows a broader chat conversation. In order to properly answer the question, the full conversational context may be required. To address this, we use this prompt to compress chat history into a final question for retrieval.Further readingSee our blog post on query transformationsSee our blog post on OpenAI's RAG strategiesRoutingA second question to ask when thinking about RAG: where does the data live? In many RAG demos, data lives in a single vectorstore but this is often not the case in production settings. When operating across a set of various datastores, incoming queries need to be routed. LLMs can be used to support",994,https://blog.langchain.dev/deconstructing-rag/
+54,"across a set of various datastores, incoming queries need to be routed. LLMs can be used to support dynamic query routing effectively (see here), as discussed in our recent review of OpenAI's RAG strategies. Query ConstructionA third question to ask when thinking about RAG: what syntax is needed to query the data? While routed questions are in natural language, data is stored in sources such as relational or graph databases that require specific syntax to retrieve. And even vectorstores utilize structured metadata for filtering. In all cases, natural language from the query needs to be converted into a query syntax for retrieval.  Text-to-SQLConsiderable effort has focused on translating natural language into SQL requests. Text-to-SQL can be done easily (here) by providing an LLM the natural language question along with relevant table information; open source LLMs have proven effective at this task, enabling data privacy (see our templates here and here). Mixed type (structured and",996,https://blog.langchain.dev/deconstructing-rag/
+55,"at this task, enabling data privacy (see our templates here and here). Mixed type (structured and unstructured) data storage in relational databases is increasingly common (see here); an embedded document column can be included using the open-source pgvector extension for PostgreSQL. It's also possible to interact with this semi-structured data using natural language, marrying the expressiveness of SQL with semantic search (see our cookbook and template).Text-to-CypherWhile vector stores readily handle unstructured data, they don't understand the relationships between vectors. While SQL databases can model relationships, schema changes can be disruptive and costly. Knowledge graphs can address these challenges by modeling the relationships between data and extending the types of relationships without a major overhaul. They are desirable for data that has many-to-many relationships or hierarchies that are difficult to represent in tabular form. Like relational databases, graph",990,https://blog.langchain.dev/deconstructing-rag/
+56,"or hierarchies that are difficult to represent in tabular form. Like relational databases, graph databases benefit from a natural language interface using text-to-Cypher, a structured query language designed to provide a visual way of matching patterns and relationships (see templates here and here).Text-to-metadata filtersVectorstores equipped with metadata filtering enable structured queries to filter embedded unstructured documents. The self-query retriever can translate natural language into these structured queries with metadata filters using a specification for the metadata fields present in the vectorstore (see our self-query template).Further readingSee our blog post on query constructionIndexingA fourth question to ask when thinking about RAG: how to design my index? For vectorstores, there is considerable opportunity to tune parameters like the chunk size and / or the document embedding strategy to support variable data types.Chunk sizeIn our review of OpenAI's RAG",989,https://blog.langchain.dev/deconstructing-rag/
+57,"document embedding strategy to support variable data types.Chunk sizeIn our review of OpenAI's RAG strategies, we highlight the notable boost in performance that they saw simply from experimenting with the chunk size during document embedding. This makes sense, because chunk size controls how much information we load into the context window (or ""RAM"" in our LLM OS analogy). Since this is a central step in index building, we have an open source Streamlit app where you can test various chunk sizes to gain some intuition; in particular, it's worth examining where the document is split using various split sizes or strategies and whether semantically related content is unnaturally split.Document embedding strategyOne of the simplest and most useful ideas in index design is to decouple what you embed (for retrieval) from what you pass to the LLM (for answer synthesis). For example, consider a large passage of text with lots of redundant detail. We can embed a few different representations",997,https://blog.langchain.dev/deconstructing-rag/
+58,"a large passage of text with lots of redundant detail. We can embed a few different representations of this to improve retrieval, such as a summary or small chunks to narrow the scope of information that is embedded. In either case, we can then retrieve the full text to pass to the LLM. These can be implemented using multi-vector and parent-document retriever, respectively. The multi-vector retriever also works well for semi-structured documents that contain a mix of text and tables (see our cookbook and template). In these cases, it's possible to extract each table, produce a summary of the table that is well suited for retrieval, but return the raw table to the LLM for answer synthesis.We can take this one step further: with the advent of multi-modal LLMs, it's possible to use generate and embed image summaries as one means of image retrieval for documents that contain text and images (see diagram below). This may be appropriate for cases where multi-modal embeddings are not",991,https://blog.langchain.dev/deconstructing-rag/
+59,"images (see diagram below). This may be appropriate for cases where multi-modal embeddings are not expected to reliably retrieve the images, as may be the case with complex figures or table. As an example, in our cookbook we use this approach with figures from a financial analysis blog (@jaminball's Clouded Judgement). However, we also have another cookbook using open source (OpenCLIP) multi-modal embeddings for retrieval of images based on more straightforward visual concepts.Further readingSee our blog post on multi-vector retrieverPost-ProcessingA final question to ask when thinking about RAG: how to combine the documents that I have retrieved? This is important, because the context window has limited size and redundant documents (e.g., from different sources) will utilize tokens without providing unique information to the LLM. A number of approaches for document post-processing (e.g., to improve diversity or filter for recency) have emerged, some of which we discuss in our blog",996,https://blog.langchain.dev/deconstructing-rag/
+60,"to improve diversity or filter for recency) have emerged, some of which we discuss in our blog post on OpenAI's RAG strategies.Re-rankingThe Cohere ReRank endpoint can be used for document compression (reduce redundancy) in cases where we are retrieving a large number of documents. Relatedly, RAG-fusion uses reciprocal rank fusion (see blog and implementation) to ReRank documents returned from a retriever (similar to multi-query).ClassificationOpenAI classified each retrieved document based upon its content and then chose a different prompt depending on that classification. This marries tagging of text for classification with logical routing (in this case, for the prompt) based on a tag.Future PlansGoing forward, we will focus on at least two areas that extend these themes.Open sourceMany of these tasks to improve RAG are narrow and well-defined. For example, query expansion (sub-question generation) or structured query construction for metadata filtering are narrow, well-defined",994,https://blog.langchain.dev/deconstructing-rag/
+61,"generation) or structured query construction for metadata filtering are narrow, well-defined tasks that also may be done repeatedly. In turn, they may not require large (and most costly) generalist models to achieve acceptable performance. Instead, smaller open source models (potentially with fine-tuning) may be sufficient. We will be releasing a series of templates that showcases how to use open source models into the RAG stack where appropriate. BenchmarksHand-in-hand with our effort to test open source LLMs, we recently launched public datasets that can serve ground truth for evaluation. We will be expanding these to include some more specific RAG challenges and using them to assess the merits of the above approaches as well as the incorporation of open source LLMs.",779,https://blog.langchain.dev/deconstructing-rag/
+62,"Join our newsletter
+Updates from the LangChain team and community
+
+
+Enter your email
+
+Subscribe
+
+Processing your application...
+Success! Please check your inbox and click the link to confirm your subscription.
+Sorry, something went wrong. Please try again.
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sign up
+
+
+
+
+
+            Â© LangChain Blog 2025",317,https://blog.langchain.dev/deconstructing-rag/
