@@ -73,6 +73,7 @@ pinecone = "5.*"
 wikipedia = "1.*"
 scikit-learn = "1.*"
 numpy = "<2"
+pyowm = "^3.5.0"
 
 [tool.poetry.group.dev.dependencies]
 ipykernel = "^6.29.5"
