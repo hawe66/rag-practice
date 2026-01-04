@@ -1,0 +1,19 @@
+{
+  "run_id": "run_c8b354b1",
+  "user_goal": "AI 트렌드 보고서",
+  "current_step": 2,
+  "completed_steps": [
+    1,
+    2
+  ],
+  "step_outputs": {
+    "step_1": {
+      "analysis": "분석 완료"
+    },
+    "step_2": {
+      "data": "데이터 수집 완료"
+    }
+  },
+  "status": "stopped",
+  "timestamp": "2026-01-05T00:02:50.384292"
+}
