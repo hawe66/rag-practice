@@ -3,9 +3,11 @@ __pycache__/
 *.pyc
 .env
 runs/
+hidden/
 
 # Poetry
 poetry.lock
+pyproject.toml
 nixpacks.toml
 
 # Week 9 제외 항목
