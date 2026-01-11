@@ -8,7 +8,6 @@ hidden/
 # Poetry
 poetry.lock
 pyproject.toml
-nixpacks.toml
 
 # Week 9 제외 항목
 week9-api-deployment/.venv/
