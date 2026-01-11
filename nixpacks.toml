@@ -1,14 +1,10 @@
 [phases.setup]
-nixPkgs = ["python311", "poetry"]
+nixPkgs = ["python311", "pip"]
 
 [phases.install]
 cmds = [
-  "poetry config virtualenvs.in-project true",
-  "poetry install --no-dev --no-interaction --no-ansi"
+  "cd week9-api-deployment && pip install --upgrade pip && pip install -r requirements.txt"
 ]
 
-[phases.build]
-cmds = []
-
 [start]
-cmd = "cd week9-api-deployment && poetry run uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+cmd = "cd week9-api-deployment && uvicorn app.main:app --host 0.0.0.0 --port $PORT"
