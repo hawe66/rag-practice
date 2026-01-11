@@ -1,24 +1,20 @@
-## 설치 방법
+# Week 9: AI Application Deployment
 
-#### python 설치
-- 파이썬 3.11 버전 설치
-pyenv install 3.11
+FastAPI 기반 AI 파이프라인 배포 프로젝트
 
-- 3.11 버전의 python 설정
-pyenv global 3.11
+## 기능
 
--파이썬 버전 확인
-python --version
+- 8주차 파이프라인을 RESTful API로 제공
+- Swagger UI 자동 문서화
+- LangSmith 모니터링 연동
 
-#### Poetry 설치
-- 아래의 명령어를 실행하여 Poetry 패키지 관리 도구를 설치
-pip3 install poetry==1.8.5
+## API 엔드포인트
 
--파이썬 가상환경 설정
-poetry shell
+- `POST /api/v1/run` - 파이프라인 실행
+- `GET /api/v1/status/{run_id}` - 상태 조회
+- `GET /api/v1/result/{run_id}` - 결과 조회
 
--파이썬 패키지 일괄 업데이트
-poetry update
-
-#### 참고
-.env 파일에 개인에 맞는 API KEY 입력
+## 로컬 실행
+```bash
+poetry install
+poetry run uvicorn app.main:app --reload
