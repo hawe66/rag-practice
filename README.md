@@ -1,3 +1,5 @@
+update 예정  
+  
 # Week 9: AI Application Deployment
 
 FastAPI 기반 AI 파이프라인 배포 프로젝트
