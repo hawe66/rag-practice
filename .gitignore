@@ -6,6 +6,7 @@ runs/
 
 # Poetry
 poetry.lock
+nixpacks.toml
 
 # Week 9 제외 항목
 week9-api-deployment/.venv/
