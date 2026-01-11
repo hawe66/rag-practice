@@ -1,1 +1,13 @@
+# Python
+__pycache__/
+*.pyc
 .env
+runs/
+
+# Poetry
+poetry.lock
+
+# Week 9 제외 항목
+week9-api-deployment/.venv/
+week9-api-deployment/.env
+week9-api-deployment/__pycache__/

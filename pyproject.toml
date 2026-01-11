@@ -74,6 +74,8 @@ wikipedia = "1.*"
 scikit-learn = "1.*"
 numpy = "<2"
 pyowm = "^3.5.0"
+fastapi = "^0.128.0"
+uvicorn = {extras = ["standard"], version = "^0.40.0"}
 
 [tool.poetry.group.dev.dependencies]
 ipykernel = "^6.29.5"
